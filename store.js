@@ -4,10 +4,18 @@ var OffsetLogCompat = require('flumelog-aligned-offset/compat')
 var codec = require('flumecodec/json')
 var keys = require('ssb-keys')
 var path = require('path')
+const caps = require('ssb-caps')
 
-module.exports = function (dir, ssbId, config) {
+module.exports = function (dir, ssbId, auth, replicate, config) {
   console.log("dir:", dir)
-  config = config || {}
+
+  config = config || {
+    caps: {
+      shs: caps.shs,
+      invite: caps.invite,
+      peerInvite: caps.invite
+    }
+  }
 
   var log = OffsetLogCompat(OffsetLog(
     path.join(dir, 'log.offset'),
@@ -58,15 +66,19 @@ module.exports = function (dir, ssbId, config) {
   var backlinks = require('ssb-backlinks')
   store.backlinks = backlinks.init(store)
 
+  var query = require('ssb-query')
+  store.query = query.init(store)
+
+  // pass in auth from secret stack for compatibility with plugins
+  store.auth = auth
+  store.replicate = replicate // friends has "opinions" about this
+
   var friends = require('ssb-friends')
   store.friends = friends.init(store, config)
 
   // depends on friends plugin
   var peerInvites = require('ssb-peer-invites')
   peerInvites.init(store, config)
-
-  var query = require('ssb-query')
-  store.query = query.init(store)
 
   store.getStatus = function() {
     // taken from ssb-db:

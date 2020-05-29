@@ -8,36 +8,6 @@
  var crypto     = require('crypto')
  var ssbKeys    = require('ssb-keys')
  var u          = require('./util')
-@@ -150,24 +149,13 @@ exports.init = function (sbot, config) {
-     }
-   })
- 
--  sbot.auth.hook(function (fn, args) {
--    var id = args[0], cb = args[1]
--    //currently a problem here where message may be confirmed,
--    //but guest didn't get the welcome yet. they need to be able to connect
--    //and request it again.
--    invites.get(function (err, v) {
--      if(err) return cb(err)
--      if(v.guests[id])
--        return cb(null, {
--          allow: ['peerInvites.getInvite', 'peerInvites.confirm'],
--          deny: null
--        })
--      fn.apply(null, args)
--    })
--  })
--
-   //retrive full invitation.
-   invites.getInvite = function (invite_id, cb) {
-+    if (invites.since.value <= 0) return cb(code(
-+      new Error('empty database'),
-+      'invite-mismatch'
-+    ))
-+
-     var self = this
-     invites.get(function (err, v) {
-       var invite = v.invites[invite_id]
 @@ -180,7 +168,7 @@ exports.init = function (sbot, config) {
        else if(invite === true)
          //TODO just retrive all confirmations we know about
@@ -47,12 +17,10 @@
        //only allow the guest to request their own invite.
        else if(self.id !== invite.content.invite)
          cb(code(
-@@ -193,19 +181,31 @@ exports.init = function (sbot, config) {
+@@ -193,19 +181,29 @@ exports.init = function (sbot, config) {
    }
  
    function getResponse (invite_id, test, cb) {
-+    if (invites.since.value <= 0) return cb(null, [])
-+
      return all(
 -      sbot.links({dest: invite_id, values: true, keys: false, meta: false}),
 +      SSB.db.query.read({
